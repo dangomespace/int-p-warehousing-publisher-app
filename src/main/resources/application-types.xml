@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="xml-shipConfirm" format="xml">
+      <types:example format="xml" element="tXML" location="examples/INV_ECP_15105_20210528131652180.xml"/>
+    </types:type>
+    <types:type name="pix" format="xml">
+      <types:example format="xml" element="tXML" location="examples/PIX_ECP_15016_20210526111900185.xml"/>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#a76cb06e-734d-465b-99ae-772f538e01e9"/>
+  <types:enrichment select="#09bb9a40-1871-4227-9adc-bd27263719af"/>
+  <types:enrichment select="#bdd207b9-1829-446d-ba52-f7230098d757"/>
+  <types:enrichment select="#0154dbb2-b808-459b-a1ff-3c7a3a2c9621">
+    <types:processor-declaration>
+      <types:output-event>
+        <types:message>
+          <types:payload type="xml-shipConfirm"/>
+        </types:message>
+      </types:output-event>
+    </types:processor-declaration>
+  </types:enrichment>
+  <types:enrichment select="#633295ab-f66a-4152-babb-2ee7158e3529">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="pix"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+  <types:enrichment select="#228aa1b7-1450-4473-bf08-98120c715dfc"/>
+  <types:enrichment select="#ba5601c4-6479-4504-a5a8-7a036e06995d">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="pix"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+</types:mule>

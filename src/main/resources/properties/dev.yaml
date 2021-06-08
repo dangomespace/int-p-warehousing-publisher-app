@@ -1,0 +1,16 @@
+api:
+ id: "16635465"
+ domain:  "int-p-warehousing-publisher-app-dev"  
+ 
+https:
+ frequency : "10000"
+ retry : "3"
+ timeout : "60000"
+ tls:
+  keyStorePassword: "![3iPfGIf03SLrzsKVjzWG0cXcXAIg7PXn]"
+  privateKeyPassword: "![3iPfGIf03SLrzsKVjzWG0cXcXAIg7PXn]"
+  filePath: "certificates/dev-keystore.jks"  
+  
+experience:
+  c100: "sg"
+  c101: "bnq" 

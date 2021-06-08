@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:java="http://www.mulesoft.org/schema/mule/java" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:ftp="http://www.mulesoft.org/schema/mule/ftp" xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd  http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/ftp http://www.mulesoft.org/schema/mule/ftp/current/mule-ftp.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd">
+	<file:config name="File_Config" doc:name="File Config" doc:id="9b9d05fe-7134-4ae0-b026-af46eb526ca2" >
+		<file:connection workingDir="${app.home}" />
+	</file:config>
+	<flow name="int-p-warehousing-publisher-app-main">
+        <http:listener path="${https.listener.path}" config-ref="int-p-warehousing-publisher-app-httpListenerConfig">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[output application/java
+---
+{
+	"httpStatus" : vars.httpStatus,
+	"X-TRANSACTION-ID" : vars.transactionId
+	
+}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[%dw 2.0
+output application/json
+
+var businessResponse = if (error.errorType.namespace[0 to 7] == 'CUSTOM_X'
+) true else false
+
+var customResponse = if (error.errorType.namespace[0 to 7] == 'CUSTOM_X' 
+) true else false
+
+
+---
+{
+"status":  "FAILURE",
+"errors" : [
+if  (businessResponse) 
+  {
+    error: {
+             errorType: (error.errorType.namespace ++ ":") ++ error.errorType.identifier,
+             errorCategory: "B",
+             errorDescription: vars.msgLog.Description,
+             errorText: if (customResponse ) "An error has as part of a custom error" else error.detailedDescription,
+             errorCustom: vars.errorCustom default []
+       }
+  }
+else 
+  {
+    error: {
+             errorType: (error.errorType.namespace ++ ":") ++ error.errorType.identifier,
+             errorCategory: "T",
+             errorDescription: "Your request has not been processed due to a System Fault. Please contact IT Support for further help.",
+             errorText: error.detailedDescription,
+             errorCustom: vars.errorCustom default []
+       }
+  }
+  ]}]]]></http:body>
+                <http:headers><![CDATA[#[output application/java
+---
+{
+	"httpStatus" : vars.httpStatus,
+	"X-TRANSACTION-ID" : vars.transactionId
+}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="int-p-warehousing-publisher-app-config" />
+        <error-handler ref="APIKIT_Error_Handler" />
+    </flow>
+    <flow name="int-p-warehousing-publisher-app-console">
+        <http:listener path="/console/*" config-ref="int-p-warehousing-publisher-app-httpListenerConfig">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="int-p-warehousing-publisher-app-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd" doc:name="resource not found">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+	<flow name="get:\publisher:int-p-warehousing-publisher-app-config" doc:id="a1640e3b-1cfb-4587-858f-ab75c9b52593">
+		<scheduler doc:name="Scheduler" doc:id="d9ea2f46-cb96-42b4-b768-cc1a89551585" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="15" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<sftp:list doc:name="List Files to SG" doc:id="7bc6df8f-7d16-4c30-b194-09d7de8f74c1" directoryPath="#[p('sgSftp.wmos2020')]" config-ref="SFTP_Config_SG">
+			<sftp:matcher directories="EXCLUDE" filenamePattern="*.xml"/>
+		</sftp:list>
+		<logger level="INFO" doc:name="Logger" doc:id="4d275ad8-537a-4af9-8913-0e3dcdffd2b9" message="#[payload.attributes.fileName]" category="Before for each" />
+		<set-payload value="#[payload.attributes.fileName default []]" doc:name="fileName" doc:id="9ba776c7-814d-477a-8c46-9707fac7c6f7" />
+		<foreach doc:name="For Each" doc:id="79d5782d-75ba-4234-af5d-5dc01070b189">
+			<set-variable value="#[p('sgSftp.wmos2020' as String) ++ &quot;/&quot; ++ payload]" doc:name="Set Variable" doc:id="b0951f47-f590-499b-8117-09d9362c3665" variableName="wmosFile" />
+			<sftp:read doc:name="read-files" doc:id="f501fbcb-ba7d-44ad-abb1-678742c9bef1" path="#[p('sgSftp.wmos2020' as String) ++ &quot;/&quot; ++ payload]" config-ref="SFTP_Config_SG"/>
+			<logger level="INFO" doc:name="Logger" doc:id="169fbef8-61a7-40b6-b39f-1260a4d6f710" message="#[vars.wmosFile]" category="after read"/>
+			<ee:transform doc:name="store-variables" doc:id="633295ab-f66a-4152-babb-2ee7158e3529">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="source"><![CDATA[%dw 2.0
+output application/json
+---
+payload.tXML.Header.'Source']]></ee:set-variable>
+				<ee:set-variable variableName="messageType"><![CDATA[%dw 2.0
+output application/json
+---
+lower(payload.tXML.Header.'Message_Type')]]></ee:set-variable>
+				<ee:set-variable variableName="version"><![CDATA[%dw 2.0
+output application/json
+---
+payload.tXML.Header.'Version']]></ee:set-variable>
+					<ee:set-variable variableName="shipConfirmCompany" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.tXML.Message.ShipConfirm.ShipConfirmSummary.CompanyName
+]]></ee:set-variable>
+					<ee:set-variable variableName="pixCompany" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.tXML.Message.PIX.ItemDefinition.Company]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+			<ee:transform doc:name="company-identificaiton" doc:id="ba5601c4-6479-4504-a5a8-7a036e06995d" >
+				<ee:message >
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="company" ><![CDATA[%dw 2.0
+output application/json
+---
+if (vars.messageType == "shipconfirm")
+	payload.tXML.Message.ShipConfirm.ShipConfirmSummary.CompanyName
+else
+if (vars.messageType == "pix")
+	payload.tXML.Message.PIX.ItemDefinition.Company
+else 
+{}]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<logger level="INFO" doc:name="process started" doc:id="c3aacdb8-0892-4475-bf32-048f369de7e8" message="#[vars.shipConfirmCompany]" category="Process started" />
+			<choice doc:name="Choice" doc:id="afd4b2b5-6633-4d1c-96de-c3713ac18b7c">
+			<when expression='#[vars.messageType == "pix" or vars.messageType == "shipconfirm"]'>
+				<logger level="INFO" doc:name="Logger" doc:id="9c245938-6127-41d7-94ce-9818673d49a9" message="In the first choice" />
+					<logger level="INFO" doc:name="Logger" doc:id="b24a0d6f-1439-4896-aa26-6700f99ff88a" message="#[payload]" category="in the first choice after set var"/>
+					<flow-ref doc:name="receiver-identifcation-flow Reference" doc:id="8c0fb4bc-2d93-4b16-afbe-62f4809a9eaa" name="receiver-identification-flow" />
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="Logger" doc:id="96158591-f319-436a-a1a5-b1f8dfb11442" message="#[payload]" category="Default choice" />
+					<sftp:delete doc:name="Delete" doc:id="51e22fb5-0959-40ce-aecc-b068793cec59" path="#[payload]" config-ref="SFTP_Config_SG"/>
+			</otherwise>
+		</choice>
+		</foreach>
+    </flow>
+</mule>

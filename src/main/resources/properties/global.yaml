@@ -1,0 +1,73 @@
+api:
+ version:  "v1"
+https:
+ internalport: "8091"
+ host: "0.0.0.0"
+ listener:
+  path: "/api/publisher/${api.version}/*"
+  frequency : "10000"
+  retryCount : "3"
+  timeout : "60000"
+tls:
+ storeType: "JKS"
+
+environment:
+ id: "" 
+
+testSftp:
+  host: "168.119.231.152"
+  port: "22"
+  username: "sftpuser"
+  password: "mulesoft123"
+  directoryPath: "/sftpuser/wincanton"
+  fromSG: "/sftpuser/wincanton/FromSGBD"
+  toSG: "/sftpuser/wincanton/ToSGBD"
+  archive: "/sftpuser/wincanton/FromSGBD/Archive"
+  error: "/sftpuser/wincanton/ToSGBD/ERR"
+  wmos2020: "/sftpuser/wincanton/WMOS2020/SG"
+    
+sgSftp:
+  host: "s-af887ac47d1342429.server.transfer.eu-west-2.amazonaws.com"
+  port: "22"
+  username: "mule-sftp-wms-t001"
+  passphrase: "gobain123"
+  directoryPath: "/SG"
+  fromSnap: "/SG/FromSNAP/"
+  toSnap: "/SG/ToSNAP/"
+  archive: "/SG/FromSNAP/Archive"
+  wmos2020: "/SG/WMOS2020/Out"
+  
+hostname:
+  nonprod: "https://wincanton-nonprod-dlb.lb.anypointdns.net"
+  prod: "https://wincanton-prod-dlb.lb.anypointdns.net"
+  
+sg:
+  env:
+    dev:
+      appName: "int-x-sg-app-dev"
+    qa:
+      appName: "int-x-sg-app-test" 
+    test:
+      appName: "int-x-sg-app-uat" 
+    prd:
+      appName: "int-x-sg-app"
+bnq:
+  env:
+    dev:
+      appName: "ext-x-bnq-app-dev"
+    qa:
+      appName: "ext-x-bnq-app-test" 
+    test:
+      appName: "ext-x-bnq-app-uat" 
+    prd:
+      appName: "ext-x-bnq-app"
+tp:
+  env:
+    dev:
+      appName: "ext-x-tp-app-dev"
+    qa:
+      appName: "ext-x-tp-app-test" 
+    test:
+      appName: "ext-x-tp-app-uat" 
+    prd:
+      appName: "ext-x-tp-app"

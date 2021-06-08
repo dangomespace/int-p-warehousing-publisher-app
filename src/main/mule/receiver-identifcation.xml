@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp"
+	xmlns:sockets="http://www.mulesoft.org/schema/mule/sockets" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/sockets http://www.mulesoft.org/schema/mule/sockets/current/mule-sockets.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<sub-flow name="receiver-identification-flow" doc:id="d20d6445-93db-4ea4-ac01-4c4839bb703b" >
+		<logger level="INFO" doc:name="Logger" doc:id="d94a50f7-dcaf-4237-9d59-aca35f74214b" message="#[vars.wmosFile]"/>
+		<logger level="INFO" doc:name="in the receiver" doc:id="0ac57e63-7407-4f14-9002-7f71ef0d8c6c" message="#[payload]" category="In the receiver"/>
+		<logger level="INFO" doc:name="company" doc:id="da6ea30a-ee86-4a7b-9979-c0033144cc80" message="#[vars.company]" category="company id"/>
+		<flow-ref doc:name="concatenate-url - flow Reference" doc:id="dea60cbf-e7e8-49e6-8491-d4952066149d" name="concatenate-url"/>
+		<logger level="INFO" doc:name="Logger" doc:id="86ff44fb-8508-4126-858c-6519101bb763" message="#[vars.concatHost ++ vars.concatVars]" category="url concat"/>
+		<http:request method="POST" doc:name="request-to-subscriber" doc:id="0154dbb2-b808-459b-a1ff-3c7a3a2c9621" config-ref="subscriber-http-endpoint" url="#[vars.concatHost ++ vars.concatVars]">
+			<http:body ><![CDATA[#[%dw 2.0
+output application/xml
+---
+payload]]]></http:body>
+		</http:request>
+		<choice doc:name="Choice" doc:id="a087bb36-05f0-439b-88ee-e0bc70d41b47" >
+			<when expression="#[attributes.statusCode == 200]">
+				<sftp:delete doc:name="Delete" doc:id="8b688e75-4f43-4a71-9745-e107159578c7" config-ref="SFTP_Config_SG" path="#[vars.wmosFile]"/>
+			</when>
+		</choice>
+		<logger level="INFO" doc:name="after request" doc:id="f9bdff9a-6941-4f78-a7e8-3c81189f59c8" message="#[payload]" category="After request"/>
+	</sub-flow>
+	<sub-flow name="concatenate-url" doc:id="2799bf0a-a8e9-476e-9188-5e9dc7816916" >
+		<ee:transform doc:name="companyName" doc:id="3310cc94-8bd1-4648-a9e2-4b0db9031a29">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="companyName"><![CDATA[%dw 2.0
+output application/json
+---
+p('secure::experience.' ++ 'c' ++ vars.company)]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="bd75741c-2471-4f88-8ffa-5526fc77944c" message="#[vars.companyName]" category="Company name " />
+		<ee:transform doc:name="company- environment" doc:id="dbcff064-05e1-416b-b5d1-8e7d65d1d6d4">
+					<ee:message>
+					</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="companyEnv"><![CDATA[%dw 2.0
+output application/json
+---
+if (vars.companyName == "sg")
+("sg.env")
+else
+if (vars.companyName == "bnq")
+("bnq.env")
+else
+if(vars.companyName == "tp")
+("tp.env")
+else
+("company name does not exist")]]></ee:set-variable>
+			</ee:variables>
+				</ee:transform>
+		<ee:transform doc:name="source-identification" doc:id="8882d023-367a-4060-a290-79d5eefcf422">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="companySource" ><![CDATA[%dw 2.0
+output application/json
+---
+if (vars.source contains("PRD"))
+	p(vars.companyEnv ++ '.prd.appName')
+else
+if (vars.source contains("DEV"))
+	p(vars.companyEnv ++ '.dev.appName')
+else
+if(vars.source contains("TST"))
+	p(vars.companyEnv ++ '.dev.appName')
+else
+if(vars.source contains("QA"))
+	p(vars.companyEnv ++ '.uat.appName')
+else
+("Source does not exist")
+]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<logger level="INFO" doc:name="source payload" doc:id="0c580684-5104-48fd-b902-129b2238f067" message="#[vars.companySource]" category="source payload" />
+		<ee:transform doc:name="concat-url" doc:id="228aa1b7-1450-4473-bf08-98120c715dfc">
+					<ee:message />
+					<ee:variables>
+						<ee:set-variable variableName="concatVars"><![CDATA["/" ++ vars.companySource ++ "/" ++ vars.company ++ "/" ++ vars.version ++ "/" ++ vars.messageType ++ "/subscribe"]]></ee:set-variable>
+				<ee:set-variable variableName="concatHost"><![CDATA[output application/json
+---
+if (vars.companySource == p(vars.companyEnv ++ '.prd.appName'))
+	p('hostname.prod')
+else 
+	p('hostname.nonprod')]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+	</sub-flow>
+</mule>
